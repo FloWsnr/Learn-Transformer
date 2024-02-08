@@ -123,6 +123,16 @@ class Embedding(torch.nn.Module):
         return x
 
 
+class Tokenizer(torch.nn.Module):
+    """Byte pair encoding tokenizer."""
+
+    def __init__(self):
+        super(Tokenizer, self).__init__()
+
+    def forward(self, x: str) -> torch.Tensor:
+        pass
+
+
 if __name__ == "__main__":
     layer = TransformerLayer()
     x = torch.randn(10, 512)
