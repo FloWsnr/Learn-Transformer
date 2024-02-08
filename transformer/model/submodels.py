@@ -128,3 +128,4 @@ if __name__ == "__main__":
     x = torch.randn(10, 512)
     out = layer(x)
     print(out)
+    print(out.shape)
