@@ -5,5 +5,6 @@
 ```bash
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 conda install pytest
+conda install -c conda-forge tiktoken
 pip install -e .
 ```

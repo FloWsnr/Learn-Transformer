@@ -8,7 +8,7 @@ class TransformerLayer(torch.nn.Module):
         self.feed_forward = FeedForward()
 
     def forward(self, x: torch.Tensor):
-        # x: [batch, 512]
+        # x: [batch, tokens, 512]
 
         # Multi-head attentiion
         x = self.multi_head_attention(x)
@@ -55,15 +55,18 @@ class MultiHeadAttention(torch.nn.Module):
 
     def forward(self, x: torch.Tensor):
 
+        # Get batch size
+        batch_size = x.shape[0]
+
         # Multi-head attention
         q: torch.Tensor = self.Wq(x)
         k: torch.Tensor = self.Wk(x)
         v: torch.Tensor = self.Wv(x)
 
         # Split heads
-        q = q.view(-1, self.num_heads, self.head_dim)
-        k = k.view(-1, self.num_heads, self.head_dim)
-        v = v.view(-1, self.num_heads, self.head_dim)
+        q = q.view(batch_size, -1, self.num_heads, self.head_dim)
+        k = k.view(batch_size, -1, self.num_heads, self.head_dim)
+        v = v.view(batch_size, -1, self.num_heads, self.head_dim)
 
         d_k = torch.tensor(k.shape[-1])
 
@@ -74,7 +77,7 @@ class MultiHeadAttention(torch.nn.Module):
         context = torch.matmul(attention, v)
 
         # Concatenate heads
-        context = context.view(-1, 512)
+        context = context.view(batch_size, -1, 512)
 
         # Normalization
         x = x + context  # residual
