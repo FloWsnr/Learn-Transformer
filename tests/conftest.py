@@ -37,7 +37,7 @@ def tokenized_sentence_batch():
 
 @pytest.fixture(scope="session")
 def embedded_sentence():
-    embeddings = torch.randn(10, 512)
+    embeddings = torch.randn(1, 10, 512)
     return embeddings
 
 
