@@ -65,7 +65,7 @@ class MultiHeadAttention(torch.nn.Module):
         # Concatenate heads again
         context = context.view(batch_size, -1, 512)
 
-        return x
+        return context
 
 
 class Embedding(torch.nn.Module):

@@ -9,11 +9,14 @@ from learn_former.model.submodels import (
 )
 
 
+#############################################
+#### Test the feed forward layer ############
+#############################################
 def test_feedforward_layer(embedded_sentence: torch.Tensor):
     output_dim = 512
     ffm = FeedForward(input_dim=output_dim, hidden_dim=2048)
     x = ffm(embedded_sentence)
-    assert x.shape == (10, output_dim)
+    assert x.shape == embedded_sentence.shape
 
 
 def test_batch_feedforward_layer(embedded_sentence_batch: torch.Tensor):
@@ -21,6 +24,11 @@ def test_batch_feedforward_layer(embedded_sentence_batch: torch.Tensor):
     ffm = FeedForward(input_dim=output_dim, hidden_dim=2048)
     x = ffm(embedded_sentence_batch)
     assert x.shape == (2, 10, output_dim)
+
+
+#############################################
+#### Test the multi-head attention layer ####
+#############################################
 
 
 def test_multiheadattention_layer(embedded_sentence: torch.Tensor):
@@ -41,6 +49,11 @@ def test_batch_multiheadattention_layer(embedded_sentence_batch: torch.Tensor):
     assert x.shape == (2, 10, input_dim)
 
 
+#############################################
+#### Test the tokenizer layer ###############
+#############################################
+
+
 def test_tokenizer(sentence: list[str]):
     tokenizer = Tokenizer()
     x = tokenizer(sentence)
@@ -51,6 +64,11 @@ def test_batch_tokenizer(sentence_batch: list[str]):
     tokenizer = Tokenizer()
     x = tokenizer(sentence_batch)
     assert x.dtype == torch.int64
+
+
+#############################################
+#### Test the word embedding layer ##########
+#############################################
 
 
 def test_word_embedding_layer(tokenized_sentence: torch.Tensor):
@@ -71,6 +89,11 @@ def test_batch_word_embedding_layer(tokenized_sentence_batch: torch.Tensor):
 
     token_shape = tokenized_sentence_batch.shape
     assert x.shape == (token_shape[0], token_shape[1], embedding_dim)
+
+
+#############################################
+#### Test the positional encoding layer #####
+#############################################
 
 
 def test_positional_encoding_layer(embedded_sentence: torch.Tensor):
