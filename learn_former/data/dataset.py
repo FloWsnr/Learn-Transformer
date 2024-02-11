@@ -1,17 +1,33 @@
+from pathlib import Path
+
 from torch.utils.data import DataLoader
-from torchtext.datasets import Multi30k
+from datasets import load_dataset, DatasetDict
+
+
+def get_dataset(
+    storage_dir: Path,
+    dataset_name: str = "wmt16",
+):
+    dataset: DatasetDict = load_dataset(
+        dataset_name, name="de-en", cache_dir=storage_dir
+    )
+    return dataset
 
 
 def get_dataloaders(
-    root,
-    splits: tuple[str] = ("train", "val", "test"),
-    language_pair: tuple[str] = ("en", "de"),
-    batch_size: int = 64,
+    storage_dir: Path,
+    dataset_name: str = "wmt16",
+    batch_size: int = 32,
     num_workers: int = 4,
 ):
-    train, val, test = Multi30k(root=root, split=splits, language_pair=language_pair)
-    return (
-        DataLoader(train, batch_size=batch_size, num_workers=num_workers),
-        DataLoader(val, batch_size=batch_size, num_workers=num_workers),
-        DataLoader(test, batch_size=batch_size, num_workers=num_workers),
+    dataset = get_dataset(storage_dir, dataset_name)
+    train_loader = DataLoader(
+        dataset["train"], batch_size=batch_size, num_workers=num_workers
     )
+    val_loader = DataLoader(
+        dataset["validation"], batch_size=batch_size, num_workers=num_workers
+    )
+    test_loader = DataLoader(
+        dataset["test"], batch_size=batch_size, num_workers=num_workers
+    )
+    return train_loader, val_loader, test_loader

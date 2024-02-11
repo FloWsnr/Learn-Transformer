@@ -5,6 +5,14 @@ Creates fixtures (functions) that can be used in the tests.
 
 import pytest
 import torch
+from pathlib import Path
+
+import learn_former
+
+
+@pytest.fixture(scope="session")
+def learn_former_root_dir() -> Path:
+    return Path(learn_former.__file__).parent
 
 
 @pytest.fixture(scope="session")
