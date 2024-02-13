@@ -35,7 +35,13 @@ class MultiHeadAttention(torch.nn.Module):
         # Calculate head_dim
         self.head_dim = input_dim // num_heads
 
-    def forward(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
+    def forward(
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        mask: torch.Tensor = None,
+    ):
 
         # Get batch size
         batch_size = k.shape[0]
@@ -52,17 +58,42 @@ class MultiHeadAttention(torch.nn.Module):
         k = k.view(batch_size, -1, self.num_heads, self.head_dim)
         v = v.view(batch_size, -1, self.num_heads, self.head_dim)
 
+        # Transpose to get dimensions [batch, num_heads, tokens, head_dim]
+        # head dim (embedding dim) and tokens must be the last two dimensions
+        # to allow for correct matrix multiplication
+        q = q.permute(0, 2, 1, 3)
+        k = k.permute(0, 2, 1, 3)
+        v = v.permute(0, 2, 1, 3)
+
+        # Get the dimension of the key (head_dim) for scaling the attention scores
         d_k = torch.tensor(k.shape[-1])
 
-        # calc attention
-        # key is transposed to match the shape of query, i.e. [batch, tokens, head_dim, num_heads]
-        # The other dimensions are batchified by pytorch's broadcasting
+        # calc attention scores
+        # key is transposed to make matrix multiplication possible,
+        # i.e. [batch, num_heads, head_dim, tokens]
+        # Matrix mul is then [tokens, head_dim] x [head_dim, tokens] -> [tokens, tokens]
+        # The other dimensions (batch and heads) are batchified by pytorch's broadcasting
         score = torch.matmul(q, k.transpose(-1, -2))
         score = score / torch.sqrt(d_k)
+
+        # Mask should be [batch, num_heads, tokens, tokens]
+        # Apply mask before softmax
+        # -inf leads to 0 in softmax, so no attention is paid to that token
+        if mask is not None:
+            score = score.masked_fill(mask == 0, torch.tensor(float("-inf")))
+
+        # Apply softmax
+        # Softmax converts the scores to probabilities that sum to 1
+        # The probabilities are used to weight the values
         attention = torch.softmax(score, dim=-1)
+
+        # Apply attention to values
+        # Because of the attention scores, some values are weighted more than others
         context = torch.matmul(attention, v)
 
-        # Concatenate heads again
+        # Transpose context back to [batch, tokens, num_heads, head_dim]
+        context = context.permute(0, 2, 1, 3).contiguous()
+        # Concatenate heads again into one large embedding dim to get [batch, tokens, 512]
         context = context.view(batch_size, -1, 512)
 
         return context
@@ -112,39 +143,6 @@ class Embedding(torch.nn.Module):
         x = self.embedding(indices)
         return x
 
-
-class Tokenizer(torch.nn.Module):
-    """Byte pair encoding tokenizer.
-
-    Transform a list of sentences to a list of tokenized sentences.
-    Tokenized sentences are lists of integers where each integer is a unique token.
-
-    Args:
-    ----
-    encoding : str
-        The encoding to use. By default "cl100k_base".
-
-    Forward:
-    -------
-    x : list[str]
-        The sentences to tokenize as batch.
-
-    Returns
-    -------
-    tokenized : torch.Tensor
-        The tokenized sentences as batch.
-    """
-
-    def __init__(self, encoding: str = "cl100k_base"):
-        super(Tokenizer, self).__init__()
-
-        self.encoding = tiktoken.get_encoding(encoding)
-
-    def forward(self, x: list[str]) -> torch.Tensor:
-        tokenized = []
-        for sentence in x:
-            tokenized.append(self.encoding.encode(sentence))
-        return torch.tensor(tokenized, dtype=torch.int64)
 
 
 class PositionalEncoding(torch.nn.Module):
@@ -207,9 +205,11 @@ class PositionalEncoding(torch.nn.Module):
         return x
 
 
-if __name__ == "__main__":
-    layer = TransformerLayer()
-    x = torch.randn(10, 512)
-    out = layer(x)
-    print(out)
-    print(out.shape)
+class MaskGenerator(torch.nn.Module):
+    """Generate masks for the encoder and decoder input"""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, x, y):
+        pass

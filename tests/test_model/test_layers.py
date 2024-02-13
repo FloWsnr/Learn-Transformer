@@ -36,7 +36,7 @@ def test_multiheadattention_layer(embedded_sentence: torch.Tensor):
     num_heads = 8
     mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
 
-    x = mha(embedded_sentence)
+    x = mha(embedded_sentence, embedded_sentence, embedded_sentence)
     assert x.shape == (1, 10, input_dim)
 
 
@@ -45,7 +45,38 @@ def test_batch_multiheadattention_layer(embedded_sentence_batch: torch.Tensor):
     num_heads = 8
     mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
 
-    x = mha(embedded_sentence_batch)
+    x = mha(embedded_sentence_batch, embedded_sentence_batch, embedded_sentence_batch)
+    assert x.shape == (2, 10, input_dim)
+
+
+def test_multiheadattention_layer_with_mask(embedded_sentence: torch.Tensor):
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+
+    num_tokens = embedded_sentence.shape[1]
+    mask = torch.tril(torch.ones(num_tokens, num_tokens))
+
+    x = mha(embedded_sentence, embedded_sentence, embedded_sentence, mask=mask)
+    assert x.shape == (1, 10, input_dim)
+
+
+def test_batch_multiheadattention_layer_with_mask(
+    embedded_sentence_batch: torch.Tensor,
+):
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+
+    num_tokens = embedded_sentence_batch.shape[1]
+    mask = torch.tril(torch.ones(num_tokens, num_tokens))
+
+    x = mha(
+        embedded_sentence_batch,
+        embedded_sentence_batch,
+        embedded_sentence_batch,
+        mask=mask,
+    )
     assert x.shape == (2, 10, input_dim)
 
 
