@@ -1,5 +1,6 @@
 # datasets
 learn_former/data/datasets/
+learn_former/data/tokenizers/
 
 # VS Code
 .vscode/
