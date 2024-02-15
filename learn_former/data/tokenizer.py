@@ -36,7 +36,7 @@ class CustomTokenizer:
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
         return tokenizer
 
-    def encode_batch(self, text_batch: list[str]) -> list[int]:
+    def encode_batch(self, text_batch: list[str]) -> tuple[list, int]:
         output = self.tokenizer.encode_batch(text_batch)
 
         token_ids = [x.ids for x in output]
