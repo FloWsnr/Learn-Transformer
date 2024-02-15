@@ -7,34 +7,61 @@ from learn_former.model.submodels import (
 
 
 class TransformerDecoderLayer(torch.nn.Module):
-    def __init__(self):
+    def __init__(
+        self,
+        num_heads: int = 8,
+        d_model: int = 512,
+        d_ff: int = 2048,
+        dropout: float = 0.1,
+    ):
         super(TransformerDecoderLayer, self).__init__()
         # Self attention for decoder input
-        self.multi_head_self_attention = MultiHeadAttention()
+        self.multi_head_self_attention = MultiHeadAttention(
+            num_heads=num_heads, d_model=d_model, dropout=dropout
+        )
 
         # Cross attention for encoder-decoder
-        self.multi_head_cross_attention = MultiHeadAttention()
+        self.multi_head_cross_attention = MultiHeadAttention(
+            num_heads=num_heads, d_model=d_model, dropout=dropout
+        )
 
-        self.feed_forward = FeedForward()
+        self.feed_forward = FeedForward(input_dim=d_model, hidden_dim=d_ff)
 
-        self.layer_norm1 = torch.nn.LayerNorm(512)
-        self.layer_norm2 = torch.nn.LayerNorm(512)
-        self.layer_norm3 = torch.nn.LayerNorm(512)
+        self.layer_norm1 = torch.nn.LayerNorm(d_model)
+        self.layer_norm2 = torch.nn.LayerNorm(d_model)
+        self.layer_norm3 = torch.nn.LayerNorm(d_model)
 
-    def forward(self, decoder_input: torch.Tensor, encoder_output: torch.Tensor):
+    def forward(
+        self,
+        decoder_input: torch.Tensor,
+        encoder_output: torch.Tensor,
+        input_mask: torch.Tensor = None,
+        target_mask: torch.Tensor = None,
+    ):
         # decoder_input: [batch, tokens, 512]
 
         # Multi-head attention
         # Self attention, so q, k, v are all decoder_input
+        # Mask is the mask of the target (decoder_input), since we
+        # don't want to attend to future tokens
         x = (
-            self.multi_head_self_attention(decoder_input, decoder_input, decoder_input)
+            self.multi_head_self_attention(
+                decoder_input, decoder_input, decoder_input, mask=target_mask
+            )
             + decoder_input
         )  # Residual connection
         x = self.layer_norm1(x)
 
         # Cross attention
         # q is decoder_input, k and v are encoder_output
-        x = self.multi_head_cross_attention(x, encoder_output, encoder_output) + x
+        # Mask is the mask of the input (encoder), since we
+        # want to attend to all input tokens for each target token
+        x = (
+            self.multi_head_cross_attention(
+                x, encoder_output, encoder_output, input_mask
+            )
+            + x
+        )
         x = self.layer_norm2(x)
 
         # Feed forward
@@ -45,16 +72,31 @@ class TransformerDecoderLayer(torch.nn.Module):
 
 
 class Decoder(torch.nn.Module):
-    def __init__(self, num_layers: int = 6):
+    def __init__(
+        self,
+        num_layers: int = 6,
+        num_heads: int = 8,
+        d_model: int = 512,
+        d_ff: int = 2048,
+        dropout: float = 0.1,
+    ):
         super(Decoder, self).__init__()
 
-        layers = [TransformerDecoderLayer() for _ in range(num_layers)]
+        layers = [
+            TransformerDecoderLayer(num_heads, d_model, d_ff, dropout)
+            for _ in range(num_layers)
+        ]
         self.layers = torch.nn.Sequential(*layers)
 
-    def forward(self, x: torch.Tensor):
+    def forward(
+        self,
+        x: torch.Tensor,
+        input_mask: torch.Tensor = None,
+        target_mask: torch.Tensor = None,
+    ):
         # x: [batch, tokens, 512]
 
         # Transformer layers
-        x = self.layers(x)
+        x = self.layers(x, input_mask=input_mask, target_mask=target_mask)
 
         return x

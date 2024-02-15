@@ -1,5 +1,4 @@
 import torch
-import tiktoken
 
 
 class FeedForward(torch.nn.Module):
@@ -94,7 +93,7 @@ class MultiHeadAttention(torch.nn.Module):
         # Transpose context back to [batch, tokens, num_heads, head_dim]
         context = context.permute(0, 2, 1, 3).contiguous()
         # Concatenate heads again into one large embedding dim to get [batch, tokens, 512]
-        context = context.view(batch_size, -1, 512)
+        context = context.view(batch_size, -1, self.num_heads * self.head_dim)
 
         return context
 
@@ -142,7 +141,6 @@ class Embedding(torch.nn.Module):
     def forward(self, indices: torch.Tensor) -> torch.Tensor:
         x = self.embedding(indices)
         return x
-
 
 
 class PositionalEncoding(torch.nn.Module):
