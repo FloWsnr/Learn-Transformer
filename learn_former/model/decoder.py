@@ -17,12 +17,12 @@ class TransformerDecoderLayer(torch.nn.Module):
         super(TransformerDecoderLayer, self).__init__()
         # Self attention for decoder input
         self.multi_head_self_attention = MultiHeadAttention(
-            num_heads=num_heads, d_model=d_model, dropout=dropout
+            num_heads=num_heads, input_dim=d_model, dropout=dropout
         )
 
         # Cross attention for encoder-decoder
         self.multi_head_cross_attention = MultiHeadAttention(
-            num_heads=num_heads, d_model=d_model, dropout=dropout
+            num_heads=num_heads, input_dim=d_model, dropout=dropout
         )
 
         self.feed_forward = FeedForward(input_dim=d_model, hidden_dim=d_ff)
@@ -86,17 +86,19 @@ class Decoder(torch.nn.Module):
             TransformerDecoderLayer(num_heads, d_model, d_ff, dropout)
             for _ in range(num_layers)
         ]
-        self.layers = torch.nn.Sequential(*layers)
+        self.layers = torch.nn.ModuleList(layers)
 
     def forward(
         self,
         x: torch.Tensor,
+        encoder_output: torch.Tensor,
         input_mask: torch.Tensor = None,
         target_mask: torch.Tensor = None,
     ):
         # x: [batch, tokens, 512]
 
         # Transformer layers
-        x = self.layers(x, input_mask=input_mask, target_mask=target_mask)
+        for layer in self.layers:
+            x = layer(x, encoder_output, input_mask=input_mask, target_mask=target_mask)
 
         return x

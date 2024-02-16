@@ -16,7 +16,7 @@ class TransformerLayer(torch.nn.Module):
     ):
         super(TransformerLayer, self).__init__()
         self.multi_head_attention = MultiHeadAttention(
-            input_dim=d_model, num_heads=num_heads
+            input_dim=d_model, num_heads=num_heads, dropout=dropout
         )
         self.feed_forward = FeedForward(input_dim=d_model, hidden_dim=d_ff)
 
@@ -57,12 +57,13 @@ class Encoder(torch.nn.Module):
             )
             for _ in range(num_layers)
         ]
-        self.layers = torch.nn.Sequential(*layers)
+        self.layers = torch.nn.ModuleList(layers)
 
     def forward(self, x: torch.Tensor, input_mask: torch.Tensor = None):
         # x: [batch, tokens, 512]
 
         # Transformer layers
-        x = self.layers(x, input_mask)
+        for layer in self.layers:
+            x = layer(x, input_mask)
 
         return x
