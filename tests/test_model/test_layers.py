@@ -3,9 +3,9 @@ import torch
 from learn_former.model.submodels import (
     FeedForward,
     MultiHeadAttention,
-    Tokenizer,
     Embedding,
     PositionalEncoding,
+    MaskGenerator,
 )
 
 
@@ -81,23 +81,6 @@ def test_batch_multiheadattention_layer_with_mask(
 
 
 #############################################
-#### Test the tokenizer layer ###############
-#############################################
-
-
-def test_tokenizer(sentence: list[str]):
-    tokenizer = Tokenizer()
-    x = tokenizer(sentence)
-    assert x.dtype == torch.int64
-
-
-def test_batch_tokenizer(sentence_batch: list[str]):
-    tokenizer = Tokenizer()
-    x = tokenizer(sentence_batch)
-    assert x.dtype == torch.int64
-
-
-#############################################
 #### Test the word embedding layer ##########
 #############################################
 
@@ -141,3 +124,18 @@ def test_batch_positional_encoding_layer(embedded_sentence_batch: torch.Tensor):
     pe = PositionalEncoding(max_len, embedding_dims)
     x = pe(embedded_sentence_batch)
     assert x.shape == embedded_sentence_batch.shape
+
+
+#############################################
+#### Test the mask generator layer ##########
+#############################################
+
+
+def test_mask_generator_layer(tokenized_sentence: torch.Tensor):
+
+    padding_mask = torch.ones_like(tokenized_sentence)
+    padding_mask[:, -3:] = 0
+
+    mg = MaskGenerator()
+    x = mg(padding_mask)
+    assert x.shape == (1, 10, 10)

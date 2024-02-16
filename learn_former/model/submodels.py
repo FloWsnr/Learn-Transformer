@@ -16,7 +16,7 @@ class FeedForward(torch.nn.Module):
 
 
 class MultiHeadAttention(torch.nn.Module):
-    def __init__(self, input_dim: int = 512, num_heads: int = 8):
+    def __init__(self, input_dim: int = 512, num_heads: int = 8, dropout: float = 0.1):
         super(MultiHeadAttention, self).__init__()
 
         self.Wq = torch.nn.Linear(input_dim, input_dim)
@@ -204,10 +204,22 @@ class PositionalEncoding(torch.nn.Module):
 
 
 class MaskGenerator(torch.nn.Module):
-    """Generate masks for the encoder and decoder input"""
+    """Generate look-ahead mask for the decoder input"""
 
     def __init__(self) -> None:
         super().__init__()
 
-    def forward(self, x, y):
-        pass
+    def forward(self, padding_mask: torch.Tensor) -> torch.Tensor:
+        # padding mask is of shape (batch, tokens)
+        # Create a mask of shape (batch, tokens, tokens)
+
+        batch_size, num_tokens = padding_mask.shape
+        # create look-ahead mask
+        mask = torch.tril(torch.ones((num_tokens, num_tokens), dtype=torch.bool))
+        # expand mask to batch size (mask is the same for all batch elements)
+        mask = mask.unsqueeze(0).expand(batch_size, -1, -1)
+
+        # Combine padding mask and look-ahead mask
+        mask = mask & padding_mask.unsqueeze(1)
+
+        return mask
