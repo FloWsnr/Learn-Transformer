@@ -40,9 +40,7 @@ class CustomTokenizer:
         output = self.tokenizer.encode_batch(text_batch)
 
         token_ids = [x.ids for x in output]
-        attention_masks = [x.attention_mask for x in output]
-
-        return token_ids, attention_masks
+        return token_ids
 
     def decode_batch(self, token_ids: list[int]) -> list[str]:
         output = self.tokenizer.decode_batch(token_ids)

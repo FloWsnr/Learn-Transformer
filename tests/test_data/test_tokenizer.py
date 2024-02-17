@@ -26,7 +26,7 @@ def test_tokenizer_encoding_decoding(learn_former_root_dir: Path):
     )
 
     text = ["Diese ist ein Test", "Das ist ein anderer Test"]
-    encoded, mask = tokenizer.encode_batch(text)
+    encoded = tokenizer.encode_batch(text)
     decoded = tokenizer.decode_batch(encoded)
 
     assert text == decoded

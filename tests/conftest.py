@@ -37,18 +37,62 @@ def tokenized_sentence() -> torch.Tensor:
 
 
 @pytest.fixture(scope="session")
-def tokenized_sentence_batch():
+def tokenized_sentence_batch() -> torch.Tensor:
     return torch.tensor(
-        [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]]
+        [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
     )
 
 
 @pytest.fixture(scope="session")
-def embedded_sentence():
+def embedded_sentence() -> torch.Tensor:
     embeddings = torch.randn(1, 10, 512)
     return embeddings
 
 
 @pytest.fixture(scope="session")
-def embedded_sentence_batch():
+def embedded_sentence_batch() -> torch.Tensor:
     return torch.randn(2, 10, 512)
+
+
+@pytest.fixture(scope="session")
+def encoder_mask(tokenized_sentence) -> torch.Tensor:
+    batch_size, seq_len = tokenized_sentence.shape
+    mask = torch.ones(seq_len, seq_len, dtype=bool)
+
+    mask[-3:, :] = False
+    mask = mask.expand(batch_size, 1, -1, -1)
+
+    return mask
+
+
+@pytest.fixture(scope="session")
+def encoder_mask_batch(tokenized_sentence_batch) -> torch.Tensor:
+    batch_size, seq_len = tokenized_sentence_batch.shape
+    mask = torch.ones(seq_len, seq_len, dtype=bool)
+
+    mask[-3:, :] = False
+    mask = mask.expand(batch_size, 1, -1, -1)
+
+    return mask
+
+
+@pytest.fixture(scope="session")
+def decoder_mask(tokenized_sentence) -> torch.Tensor:
+    batch_size, seq_len = tokenized_sentence.shape
+    mask = torch.ones(seq_len, seq_len, dtype=bool)
+
+    mask = torch.tril(mask)
+    mask = mask.expand(batch_size, 1, -1, -1)
+
+    return mask
+
+
+@pytest.fixture(scope="session")
+def decoder_mask_batch(tokenized_sentence_batch) -> torch.Tensor:
+    batch_size, seq_len = tokenized_sentence_batch.shape
+    mask = torch.ones(seq_len, seq_len, dtype=bool)
+
+    mask = torch.tril(mask)
+    mask = mask.expand(batch_size, 1, -1, -1)
+
+    return mask

@@ -49,33 +49,29 @@ def test_batch_multiheadattention_layer(embedded_sentence_batch: torch.Tensor):
     assert x.shape == (2, 10, input_dim)
 
 
-def test_multiheadattention_layer_with_mask(embedded_sentence: torch.Tensor):
-    input_dim = 512
-    num_heads = 8
-    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
-
-    num_tokens = embedded_sentence.shape[1]
-    mask = torch.tril(torch.ones(num_tokens, num_tokens))
-
-    x = mha(embedded_sentence, embedded_sentence, embedded_sentence, mask=mask)
-    assert x.shape == (1, 10, input_dim)
-
-
-def test_batch_multiheadattention_layer_with_mask(
-    embedded_sentence_batch: torch.Tensor,
+def test_multiheadattention_layer_with_mask(
+    embedded_sentence: torch.Tensor, decoder_mask: torch.Tensor
 ):
     input_dim = 512
     num_heads = 8
     mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
 
-    num_tokens = embedded_sentence_batch.shape[1]
-    mask = torch.tril(torch.ones(num_tokens, num_tokens))
+    x = mha(embedded_sentence, embedded_sentence, embedded_sentence, mask=decoder_mask)
+    assert x.shape == (1, 10, input_dim)
+
+
+def test_batch_multiheadattention_layer_with_mask(
+    embedded_sentence_batch: torch.Tensor, decoder_mask_batch: torch.Tensor
+):
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
 
     x = mha(
         embedded_sentence_batch,
         embedded_sentence_batch,
         embedded_sentence_batch,
-        mask=mask,
+        mask=decoder_mask_batch,
     )
     assert x.shape == (2, 10, input_dim)
 
@@ -131,11 +127,22 @@ def test_batch_positional_encoding_layer(embedded_sentence_batch: torch.Tensor):
 #############################################
 
 
-def test_mask_generator_layer(tokenized_sentence: torch.Tensor):
+def test_mask_generator_layer_without_lookahead(tokenized_sentence: torch.Tensor):
 
-    padding_mask = torch.ones_like(tokenized_sentence)
-    padding_mask[:, -3:] = 0
+    padding_id = 7
 
-    mg = MaskGenerator()
-    x = mg(padding_mask)
-    assert x.shape == (1, 10, 10)
+    mg = MaskGenerator(padding_id)
+    mask = mg(tokenized_sentence)
+    assert mask.shape == (1, 1, 10, 10)
+
+
+def test_mask_generator_layer_with_lookahead(tokenized_sentence: torch.Tensor):
+
+    padding_id = 7
+
+    mg = MaskGenerator(padding_id)
+    mask = mg(tokenized_sentence, look_ahead=True)
+
+    # The mask should be a lower triangular matrix
+    # second element and all after this in first row should be 0
+    assert torch.all(mask[:, :, 0, 1:] == 0)

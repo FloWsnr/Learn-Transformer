@@ -2,12 +2,15 @@ import torch
 
 
 class FeedForward(torch.nn.Module):
-    def __init__(self, input_dim: int = 512, hidden_dim: int = 2048):
+    def __init__(
+        self, input_dim: int = 512, hidden_dim: int = 2048, dropout: float = 0.1
+    ):
         super(FeedForward, self).__init__()
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(input_dim, hidden_dim),
             torch.nn.ReLU(),
             torch.nn.Linear(hidden_dim, input_dim),
+            torch.nn.Dropout(dropout),
         )
 
     def forward(self, x: torch.Tensor):
@@ -22,6 +25,8 @@ class MultiHeadAttention(torch.nn.Module):
         self.Wq = torch.nn.Linear(input_dim, input_dim)
         self.Wk = torch.nn.Linear(input_dim, input_dim)
         self.Wv = torch.nn.Linear(input_dim, input_dim)
+
+        self.dropout = torch.nn.Dropout(dropout)
 
         self.num_heads = num_heads
 
@@ -95,7 +100,10 @@ class MultiHeadAttention(torch.nn.Module):
         # Concatenate heads again into one large embedding dim to get [batch, tokens, 512]
         context = context.view(batch_size, -1, self.num_heads * self.head_dim)
 
-        return context
+        # Apply dropout to avoid overfitting
+        x = self.dropout(context)
+
+        return x
 
 
 class Embedding(torch.nn.Module):
@@ -204,22 +212,32 @@ class PositionalEncoding(torch.nn.Module):
 
 
 class MaskGenerator(torch.nn.Module):
-    """Generate look-ahead mask for the decoder input"""
+    """Generate padding mask and look-head mask for encoder and decoder."""
 
-    def __init__(self) -> None:
+    def __init__(self, padding_id: int) -> None:
         super().__init__()
+        self.padding_id = padding_id
 
-    def forward(self, padding_mask: torch.Tensor) -> torch.Tensor:
-        # padding mask is of shape (batch, tokens)
-        # Create a mask of shape (batch, tokens, tokens)
+    def forward(self, x: torch.Tensor, look_ahead: bool = False) -> torch.Tensor:
 
-        batch_size, num_tokens = padding_mask.shape
-        # create look-ahead mask
-        mask = torch.tril(torch.ones((num_tokens, num_tokens), dtype=torch.bool))
-        # expand mask to batch size (mask is the same for all batch elements)
-        mask = mask.unsqueeze(0).expand(batch_size, -1, -1)
+        # x: [batch, tokens]
+        batch_size, num_tokens = x.shape
 
-        # Combine padding mask and look-ahead mask
-        mask = mask & padding_mask.unsqueeze(1)
+        # Create mask of shape (batch, token)
+        mask = torch.ones((batch_size, num_tokens), dtype=torch.bool)
+
+        # mask = 0 where x is padding id
+        mask[x == self.padding_id] = 0
+
+        # mask = [batch, 1 , tokens, tokens]
+        # Create a rectangular mask (tokens, tokens) where each row is the same
+        # I.e. for each row (each token in the attention matrix),
+        # the mask is the same since the padding is the same for each token
+        # Singleton dim is added to allow broadcasting with the multihead attention matrix
+        mask = mask.unsqueeze(1).unsqueeze(2).expand(-1, -1, num_tokens, -1)
+
+        if look_ahead:
+            # create look-ahead mask
+            mask = torch.tril(mask)
 
         return mask
