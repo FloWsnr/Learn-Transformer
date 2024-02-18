@@ -39,11 +39,11 @@ def train(
 
             # Encode input and target, both are padded to the same length
             # Mask show which tokens are padding tokens
-            input, input_padding_mask = tokenizer.encode_batch(input)
-            target, target_padding_mask = tokenizer.encode_batch(target)
+            input = tokenizer.encode_batch(input)
+            target = tokenizer.encode_batch(target)
 
             # Forward pass
-            output = model(input, target, input_padding_mask, target_padding_mask)
+            output = model(input, target)
             loss = criterion(output, target)
 
             # Backward pass
