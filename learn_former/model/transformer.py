@@ -13,7 +13,8 @@ class Transformer(torch.nn.Module):
         num_heads: int = 8,
         d_ff: int = 2048,
         dropout: float = 0.1,
-        vocab_size: int = 10000,
+        vocab_size_de: int = 10000,
+        vocab_size_en: int = 10000,
         padding_id: int = 0,
     ):
         super(Transformer, self).__init__()
@@ -33,12 +34,18 @@ class Transformer(torch.nn.Module):
             dropout=dropout,
         )
 
+        # Embedding is shared between encoder and decoder
+        # larger vocab size is used for the embeddings
+        vocab_size = max(vocab_size_de, vocab_size_en)
         self.embedding = Embedding(num_embeddings=vocab_size, dim_embeddings=d_model)
         self.positional_encoding = PositionalEncoding(embedding_dims=d_model)
 
         self.dropout = torch.nn.Dropout(dropout)
-
         self.mask_generator = MaskGenerator(padding_id=padding_id)
+
+        # In the real implementation, the readout layer is the same as the embedding layer
+        # as in they share the same weights
+        self.linear_readout = torch.nn.Linear(d_model, vocab_size)
 
     def forward(
         self,
@@ -75,5 +82,10 @@ class Transformer(torch.nn.Module):
             input_mask=input_mask,
             target_mask=target_mask,
         )
+
+        # Readout
+        ############################
+        x = self.linear_readout(x)
+        x = torch.softmax(x, dim=-1)
 
         return x
