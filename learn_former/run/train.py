@@ -1,5 +1,7 @@
 """Train the model."""
 
+from pathlib import Path
+
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
@@ -7,7 +9,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.nn import CrossEntropyLoss
 
 from learn_former.model.transformer import Transformer
-from learn_former.data.dataset import get_dataloaders
+from learn_former.data.dataset import get_dataloaders, get_dataset
 from learn_former.data.tokenizer import CustomTokenizer
 
 
@@ -18,7 +20,8 @@ def train(
     optimizer: Optimizer,
     scheduler: LRScheduler,
     criterion: CrossEntropyLoss,
-    tokenizer: CustomTokenizer,
+    tokenizer_de: CustomTokenizer,
+    tokenizer_en: CustomTokenizer,
 ):
     for epoch in range(10):
         print(f"Epoch {epoch}")
@@ -37,10 +40,10 @@ def train(
             input = input[:, 1:]
             target = target[:, :-1]
 
-            # Encode input and target, both are padded to the same length
-            # Mask show which tokens are padding tokens
-            input = tokenizer.encode_batch(input)
-            target = tokenizer.encode_batch(target)
+            # Encode input and target
+            # Need two different tokenizers because the input and target languages are different
+            input = tokenizer_de.encode_batch(input)
+            target = tokenizer_en.encode_batch(target)
 
             # Forward pass
             output = model(input, target)
@@ -88,24 +91,78 @@ def test(
             print(f"Test loss: {loss.item()}")
 
 
+def get_tokenizer(
+    tokenizer_path: Path, dataset_dir: str, dataset_name: str, language: str
+) -> CustomTokenizer:
+
+    if tokenizer_path.exists():
+        tokenizer = CustomTokenizer.from_pretrained_tokenizer(tokenizer_path)
+
+    else:
+        tokenizer = CustomTokenizer.from_dataset(
+            dataset_path=dataset_dir,
+            dataset_name=dataset_name,
+            split="train",
+            language=language,
+        )
+        tokenizer.save_tokenizer(tokenizer_path)
+
+    return tokenizer
+
+
 if __name__ == "__main__":
+    from config import PACKAGE_PATH
+
+    dataset_dir = PACKAGE_PATH / "learn_former\data\datasets"
+    dataset_name = "wmt16"
+    tokenizer_de_path = PACKAGE_PATH / r"learn_former\data\tokenizers\de_tokenizer.json"
+    tokenizer_en_path = PACKAGE_PATH / r"learn_former\data\tokenizers\en_tokenizer.json"
+
+    ########################################
+    ###### Get dataset #####################
+    ########################################
+    dataset = get_dataset(dataset_dir, dataset_name)
+
+    ########################################
+    ###### Get dataloaders #################
+    ########################################
     train_loader, val_loader, test_loader = get_dataloaders(
-        root="learn_former\data\datasets",
-        dataset_name="wmt16",
+        dataset=dataset,
         batch_size=32,
         num_workers=4,
     )
 
-    model = Transformer()
+    ########################################
+    ###### Get tokenizers ##################
+    ########################################
+
+    tokenizer_de = get_tokenizer(
+        tokenizer_de_path, "learn_former\data\datasets", "wmt16", "de"
+    )
+    tokenizer_en = get_tokenizer(
+        tokenizer_en_path, "learn_former\data\datasets", "wmt16", "en"
+    )
+
+    vocabulary_size_de = tokenizer_de.tokenizer.get_vocab_size()
+    vocabulary_size_en = tokenizer_en.tokenizer.get_vocab_size()
+
+    ########################################
+    ###### Train model #####################
+    ########################################
+
+    model = Transformer(
+        d_model=512,
+        d_ff=2048,
+        num_head=8,
+        num_layers=6,
+        dropout=0.1,
+        vocab_size_de=vocabulary_size_de,
+        vocab_size_en=vocabulary_size_en,
+        padding_id=3,
+    )
     optimizer = torch.optim.Adam(model, lr=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
     criterion = torch.nn.CrossEntropyLoss()
-
-    tokenizer = CustomTokenizer(
-        tokenizer_path="learn_former\data\tokenizers\tokenizer.json",
-        dataset_dir="learn_former\data\datasets",
-        dataset_name="wmt16",
-    )
 
     train(
         model,
@@ -115,6 +172,7 @@ if __name__ == "__main__":
         optimizer,
         scheduler,
         criterion,
-        tokenizer,
+        tokenizer_de,
+        tokenizer_en,
     )
     print("Finished training")

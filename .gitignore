@@ -1,6 +1,8 @@
 # datasets
 learn_former/data/datasets/
 learn_former/data/tokenizers/
+config.py
+
 
 # VS Code
 .vscode/
