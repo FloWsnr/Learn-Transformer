@@ -92,9 +92,9 @@ class CustomTokenizer:
         )
         return tokenizer
 
-    @staticmethod
-    def save_tokenizer(tokenizer_path: Path, tokenizer: Tokenizer) -> None:
-        tokenizer.save(str(tokenizer_path))
+    def save_tokenizer(self, tokenizer_path: Path) -> None:
+        tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
+        self.tokenizer.save(str(tokenizer_path))
 
     def encode_batch(self, text_batch: list[str]) -> tuple[list, int]:
         output = self.tokenizer.encode_batch(text_batch)
