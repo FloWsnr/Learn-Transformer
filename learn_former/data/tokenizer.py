@@ -6,8 +6,9 @@ from datasets import DatasetDict, Dataset
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.trainers import BpeTrainer
-from tokenizers.pre_tokenizers import BertPreTokenizer
-from tokenizers.normalizers import BertNormalizer
+from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.normalizers import NFC
+from tokenizers.processors import TemplateProcessing
 
 
 import learn_former.data.dataset
@@ -26,8 +27,10 @@ class CustomTokenizer:
 
     def __init__(self, tokenizer: Tokenizer) -> None:
         self.tokenizer = tokenizer
+
+        pad_id = self.tokenizer.token_to_id("[PAD]")
         self.tokenizer.enable_truncation(max_length=512)
-        self.tokenizer.enable_padding(pad_id=3, pad_token="[PAD]")
+        self.tokenizer.enable_padding(pad_id=pad_id, pad_token="[PAD]")
 
     @classmethod
     def from_pretrained_tokenizer(cls, tokenizer_path: Path) -> Self:
@@ -75,11 +78,23 @@ class CustomTokenizer:
         language: str,
     ) -> Tokenizer:
         tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
-        trainer = BpeTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]"])
-        tokenizer.pre_tokenizer = BertPreTokenizer()
-        tokenizer.normalizer = BertNormalizer()
+        trainer = BpeTrainer(
+            special_tokens=[
+                "[PAD]",
+                "[UNK]",
+                "[SEP]",
+                "[SOS]",
+                "[EOS]",
+            ]
+        )
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.normalizer = NFC()
 
-        def _batch_iterator(dataset, batch_size: int = 1000, language: str = "de"):
+        def _batch_iterator(
+            dataset,
+            language: str,
+            batch_size: int = 1000,
+        ):
             for i in range(0, len(dataset), batch_size):
                 data = dataset[i : i + batch_size]
                 data = [x[language] for x in data]
@@ -90,13 +105,24 @@ class CustomTokenizer:
             trainer=trainer,
             length=len(dataset),
         )
+
+        tokenizer.post_processor = TemplateProcessing(
+            single="[SOS] $A [EOS]",
+            pair="[SOS] $A [SEP] $B:1 [EOS]:1",
+            special_tokens=[
+                ("[SOS]", tokenizer.token_to_id("[SOS]")),
+                ("[EOS]", tokenizer.token_to_id("[EOS]")),
+                ("[SEP]", tokenizer.token_to_id("[SEP]")),
+            ],
+        )
+
         return tokenizer
 
     def save_tokenizer(self, tokenizer_path: Path) -> None:
         tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
         self.tokenizer.save(str(tokenizer_path))
 
-    def encode_batch(self, text_batch: list[str]) -> tuple[list, int]:
+    def encode_batch(self, text_batch: list[str]) -> list[list[int]]:
         output = self.tokenizer.encode_batch(text_batch)
 
         token_ids = [x.ids for x in output]

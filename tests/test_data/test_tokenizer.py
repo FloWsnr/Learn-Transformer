@@ -17,12 +17,12 @@ def test_tokenizer_from_file(learn_former_root_dir: Path):
 def test_tokenizer_encoding_decoding(learn_former_root_dir: Path):
 
     tokenizer_path = (
-        learn_former_root_dir.parent / r"tests\reference_data\tokenizer.json"
+        learn_former_root_dir.parent / r"tests\reference_data\de_tokenizer.json"
     )
 
     tokenizer = CustomTokenizer.from_pretrained_tokenizer(tokenizer_path)
 
-    text = ["Diese ist ein Test", "Das ist ein anderer Test"]
+    text = ["Dies ist ein Test", "Das ist ein anderer Test"]
     encoded = tokenizer.encode_batch(text)
     decoded = tokenizer.decode_batch(encoded)
 
