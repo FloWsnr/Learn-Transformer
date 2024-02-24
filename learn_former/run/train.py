@@ -42,11 +42,20 @@ def train(
 
             # Encode input and target
             # Need two different tokenizers because the input and target languages are different
-            input = tokenizer_de.encode_batch(input)
-            target = tokenizer_en.encode_batch(target)
+            input: torch.Tensor = tokenizer_de.encode_batch(input)
+            target: torch.Tensor = tokenizer_en.encode_batch(target)
 
             # Forward pass
-            output = model(input, target)
+            output: torch.Tensor = model(input, target)
+
+            # Calculate loss
+            # output: [batch, tokens, vocab_size]
+            # Reshape target to [batch, tokens * vocab_size]
+            output = output.view(-1, output.shape[-1])
+
+            # Reshape target to [batch * tokens]
+            target = target.view(-1)
+
             loss = criterion(output, target)
 
             # Backward pass
