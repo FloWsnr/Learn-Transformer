@@ -76,6 +76,85 @@ def test_batch_multiheadattention_layer_with_mask(
     assert x.shape == (2, 10, input_dim)
 
 
+def test_self_multiheadattention_layer_with_pad_mask_from_generator(
+    embedded_sentence_batch: torch.Tensor,
+):
+    """Test the self attention layer with padding mask generated from MaskGenerator"""
+
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+    mask_generator = MaskGenerator(padding_id=0)
+
+    q = embedded_sentence_batch
+    k = embedded_sentence_batch
+    v = embedded_sentence_batch
+
+    x_without_embeddings = embedded_sentence_batch[:, :, 0]
+    mask = mask_generator.padding_mask(x_without_embeddings)
+
+    x = mha(
+        q,
+        k,
+        v,
+        mask=mask,
+    )
+    assert x.shape == (2, 10, input_dim)
+
+
+def test_cross_multiheadattention_layer_with_pad_mask_from_generator(
+    embedded_sentence_batch: torch.Tensor,
+):
+    """Test the self attention layer with padding mask generated from MaskGenerator"""
+
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+    mask_generator = MaskGenerator(padding_id=0)
+
+    q = embedded_sentence_batch
+
+    # Different k and v for cross attention
+    k = embedded_sentence_batch[:, :-1, :]
+    v = embedded_sentence_batch[:, :-1, :]
+
+    x_without_embeddings = k[:, :, 0]
+    mask = mask_generator.padding_mask(x_without_embeddings)
+
+    x = mha(
+        q,
+        k,
+        v,
+        mask=mask,
+    )
+    assert x.shape == (2, 10, input_dim)
+
+
+def test_self_multiheadattention_layer_with_mask_generator_look_ahead(
+    embedded_sentence_batch: torch.Tensor,
+):
+    """Test the self attention layer with look ahead mask generated from MaskGenerator"""
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+    mask_generator = MaskGenerator(padding_id=0)
+
+    q = embedded_sentence_batch
+    k = embedded_sentence_batch
+    v = embedded_sentence_batch
+
+    x_without_embeddings = embedded_sentence_batch[:, :, 0]
+    mask = mask_generator.look_ahead_mask(x_without_embeddings)
+
+    x = mha(
+        q,
+        k,
+        v,
+        mask=mask,
+    )
+    assert x.shape == (2, 10, input_dim)
+
+
 #############################################
 #### Test the word embedding layer ##########
 #############################################
@@ -127,21 +206,21 @@ def test_batch_positional_encoding_layer(embedded_sentence_batch: torch.Tensor):
 #############################################
 
 
-def test_mask_generator_layer_without_lookahead(tokenized_sentence: torch.Tensor):
+def test_mask_generator_padding(tokenized_sentence: torch.Tensor):
 
     padding_id = 7
 
     mg = MaskGenerator(padding_id)
-    mask = mg(tokenized_sentence)
-    assert mask.shape == (1, 1, 10, 10)
+    mask = mg.padding_mask(tokenized_sentence)
+    assert mask.shape == (1, 1, 1, 10)
 
 
-def test_mask_generator_layer_with_lookahead(tokenized_sentence: torch.Tensor):
+def test_mask_generator_lookahead(tokenized_sentence: torch.Tensor):
 
     padding_id = 7
 
     mg = MaskGenerator(padding_id)
-    mask = mg(tokenized_sentence, look_ahead=True)
+    mask = mg.look_ahead_mask(tokenized_sentence)
 
     # The mask should be a lower triangular matrix
     # second element and all after this in first row should be 0

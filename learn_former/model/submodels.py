@@ -200,7 +200,7 @@ class PositionalEncoding(torch.nn.Module):
             positions / (10000 ** (dims / embedding_dims))
         )
 
-        self.pos_encoding = pos_encoding.unsqueeze(0)
+        self.pos_encoding = torch.nn.Parameter(pos_encoding.unsqueeze(0))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -211,14 +211,16 @@ class PositionalEncoding(torch.nn.Module):
         return x
 
 
-class MaskGenerator(torch.nn.Module):
+class MaskGenerator:
     """Generate padding mask and look-head mask for encoder and decoder."""
 
     def __init__(self, padding_id: int) -> None:
         super().__init__()
         self.padding_id = padding_id
 
-    def forward(self, x: torch.Tensor, look_ahead: bool = False) -> torch.Tensor:
+    def padding_mask(self, x: torch.Tensor) -> torch.Tensor:
+
+        device = x.device
 
         # x: [batch, tokens]
         batch_size, num_tokens = x.shape
@@ -229,15 +231,31 @@ class MaskGenerator(torch.nn.Module):
         # mask = 0 where x is padding id
         mask[x == self.padding_id] = 0
 
+        # Add singleton dim to allow broadcasting with multihead attention matrix
+        # mask: [batch, 1, 1, tokens]
+        mask = mask.unsqueeze(1).unsqueeze(2)
+
+        return mask.to(device)
+
+    def look_ahead_mask(self, x: torch.Tensor) -> torch.Tensor:
+        device = x.device
+        # x: [batch, tokens]
+        batch_size, num_tokens = x.shape
+
+        # create look-ahead mask
         # mask = [batch, 1 , tokens, tokens]
-        # Create a rectangular mask (tokens, tokens) where each row is the same
-        # I.e. for each row (each token in the attention matrix),
-        # the mask is the same since the padding is the same for each token
-        # Singleton dim is added to allow broadcasting with the multihead attention matrix
-        mask = mask.unsqueeze(1).unsqueeze(2).expand(-1, -1, num_tokens, -1)
+        # Create a rectangular mask (tokens, tokens)
+        mask = torch.ones((batch_size, num_tokens, num_tokens), dtype=torch.bool)
 
-        if look_ahead:
-            # create look-ahead mask
-            mask = torch.tril(mask)
+        # Set the upper triangular part of the mask to 0
+        # Therefore, the fist token (row 0) can only attend to itself
+        # The second token (row 1) can attend to itself and the first token
+        mask = torch.tril(mask)
+        # mask = 0 where x is padding id
+        mask[x == self.padding_id] = 0
 
-        return mask
+        # Add singleton dim to allow broadcasting with multihead attention matrix
+        # mask: [batch, 1, tokens, tokens]
+        mask = mask.unsqueeze(1)
+
+        return mask.to(device)

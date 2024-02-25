@@ -55,8 +55,8 @@ class Transformer(torch.nn.Module):
         # x: [batch, tokens]
         # Generate mask for the decoder input and encoder output
         # Add a look-ahead mask to the decoder input
-        input_mask = self.mask_generator(input)
-        target_mask = self.mask_generator(target, look_ahead=True)
+        input_mask = self.mask_generator.padding_mask(input)
+        target_mask = self.mask_generator.look_ahead_mask(target)
 
         # Embedding
         input = self.embedding(input)
@@ -83,9 +83,10 @@ class Transformer(torch.nn.Module):
             target_mask=target_mask,
         )
 
-        # Readout
+        # Readout linear layer
+        # This is the layer that is used to predict the next token
+        # No softmax, since it is included in the CrossEntropyLoss
         ############################
         x = self.linear_readout(x)
-        x = torch.softmax(x, dim=-1)
 
         return x

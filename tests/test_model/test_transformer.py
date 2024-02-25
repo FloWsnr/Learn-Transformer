@@ -17,8 +17,8 @@ def test_transformer_single(tokenized_sentence: torch.Tensor):
 
     output = model(input, target)
     assert output.shape == (
-        input.shape[0],
-        input.shape[1],
+        target.shape[0],
+        target.shape[1],
         vocab_size,
     )
 
@@ -36,7 +36,30 @@ def test_transformer_batch(tokenized_sentence_batch: torch.Tensor):
 
     output = model(input, target)
     assert output.shape == (
-        input.shape[0],
-        input.shape[1],
+        target.shape[0],
+        target.shape[1],
+        vocab_size,
+    )
+
+
+def test_transformer_batch_difference_in_token_num(
+    tokenized_sentence_batch: torch.Tensor,
+):
+    d_model = 512
+    vocab_size = 100
+
+    model = Transformer(
+        d_model=d_model, vocab_size_de=vocab_size, vocab_size_en=vocab_size
+    )
+
+    input = tokenized_sentence_batch
+
+    # Remove the last token from the target
+    target = tokenized_sentence_batch[:, :-1]
+
+    output = model(input, target)
+    assert output.shape == (
+        target.shape[0],
+        target.shape[1],
         vocab_size,
     )
