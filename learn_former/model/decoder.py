@@ -46,7 +46,10 @@ class TransformerDecoderLayer(torch.nn.Module):
         # don't want to attend to future tokens
         x = (
             self.multi_head_self_attention(
-                decoder_input, decoder_input, decoder_input, mask=target_mask
+                q=decoder_input,
+                k=decoder_input,
+                v=decoder_input,
+                mask=target_mask,
             )
             + decoder_input
         )  # Residual connection
@@ -58,7 +61,10 @@ class TransformerDecoderLayer(torch.nn.Module):
         # want to attend to all input tokens for each target token
         x = (
             self.multi_head_cross_attention(
-                x, encoder_output, encoder_output, input_mask
+                q=x,
+                k=encoder_output,
+                v=encoder_output,
+                mask=input_mask,
             )
             + x
         )
