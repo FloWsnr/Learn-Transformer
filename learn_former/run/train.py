@@ -22,39 +22,57 @@ def train(
     criterion: CrossEntropyLoss,
     tokenizer_de: CustomTokenizer,
     tokenizer_en: CustomTokenizer,
+    epochs: int = 10,
 ):
-    for epoch in range(10):
+
+    print(f"Starting training for {epochs} epochs")
+    for epoch in range(epochs):
         print(f"Epoch {epoch}")
 
         epoch_loss = 0
         num_batches = 0
 
-        for batch in train_loader:
-            # input: [batch, tokens]
-            # target: [batch, tokens]
+        for i, batch in enumerate(train_loader):
+
+            print(f"\tBatch {i}")
+
+            #################################
+            # Tokenization ##################
+            #################################
             input = batch["de"]
             target = batch["en"]
 
-            # Shift target to the right and input to the left
-            # With this, the model will predict the next token given the previous ones
-            input = input[:, 1:]
-            target = target[:, :-1]
-
             # Encode input and target
             # Need two different tokenizers because the input and target languages are different
-            input: torch.Tensor = tokenizer_de.encode_batch(input)
-            target: torch.Tensor = tokenizer_en.encode_batch(target)
+            input = tokenizer_de.encode_batch(input)
+            target = tokenizer_en.encode_batch(target)
 
+            #################################
+            # Convert to tensor #############
+            #################################
+            input = torch.tensor(input)
+            target = torch.tensor(target)
+
+            # move to device
+            if torch.cuda.is_available():
+                input = input.cuda()
+                target = target.cuda()
+
+            # input: [batch, tokens]
+            # target: [batch, tokens]
+            # Last target token is not used as input to the model
             # Forward pass
-            output: torch.Tensor = model(input, target)
+            output: torch.Tensor = model(input, target[:, :-1])
 
             # Calculate loss
             # output: [batch, tokens, vocab_size]
             # Reshape target to [batch, tokens * vocab_size]
             output = output.view(-1, output.shape[-1])
 
+            # Remove first token from target to match output
+            target = target[:, 1:]
             # Reshape target to [batch * tokens]
-            target = target.view(-1)
+            target = target.contiguous().view(-1)
 
             loss = criterion(output, target)
 
@@ -63,7 +81,10 @@ def train(
             loss.backward()
             optimizer.step()
 
-            epoch_loss += loss.item()
+            batch_loss = loss.item()
+            print(f"\tBatch loss: {batch_loss}")
+            epoch_loss += batch_loss
+
             num_batches += 1
 
         epoch_loss /= num_batches
@@ -105,9 +126,11 @@ def get_tokenizer(
 ) -> CustomTokenizer:
 
     if tokenizer_path.exists():
+        print(f"Loading tokenizer from {tokenizer_path}")
         tokenizer = CustomTokenizer.from_pretrained_tokenizer(tokenizer_path)
 
     else:
+        print(f"Training tokenizer and saving to {tokenizer_path}")
         tokenizer = CustomTokenizer.from_dataset(
             dataset_path=dataset_dir,
             dataset_name=dataset_name,
@@ -117,6 +140,35 @@ def get_tokenizer(
         tokenizer.save_tokenizer(tokenizer_path)
 
     return tokenizer
+
+
+def get_model(
+    d_model: int,
+    d_ff: int,
+    num_heads: int,
+    num_layers: int,
+    dropout: float,
+    vocab_size_de: int,
+    vocab_size_en: int,
+    padding_id: int,
+) -> Transformer:
+
+    model = Transformer(
+        d_model=d_model,
+        d_ff=d_ff,
+        num_heads=num_heads,
+        num_layers=num_layers,
+        dropout=dropout,
+        vocab_size_de=vocab_size_de,
+        vocab_size_en=vocab_size_en,
+        padding_id=padding_id,
+    )
+
+    # Move to GPU if available
+    if torch.cuda.is_available():
+        model = model.cuda()
+
+    return model
 
 
 if __name__ == "__main__":
@@ -130,6 +182,7 @@ if __name__ == "__main__":
     ########################################
     ###### Get dataset #####################
     ########################################
+    print("Loading dataset")
     dataset = get_dataset(dataset_dir, dataset_name)
 
     ########################################
@@ -138,7 +191,7 @@ if __name__ == "__main__":
     train_loader, val_loader, test_loader = get_dataloaders(
         dataset=dataset,
         batch_size=32,
-        num_workers=4,
+        num_workers=8,
     )
 
     ########################################
@@ -152,6 +205,11 @@ if __name__ == "__main__":
         tokenizer_en_path, "learn_former\data\datasets", "wmt16", "en"
     )
 
+    padding_id_de = tokenizer_de.tokenizer.token_to_id("[PAD]")
+    padding_id_en = tokenizer_en.tokenizer.token_to_id("[PAD]")
+    if padding_id_de != padding_id_en:
+        raise ValueError("Padding ids are different")
+
     vocabulary_size_de = tokenizer_de.tokenizer.get_vocab_size()
     vocabulary_size_en = tokenizer_en.tokenizer.get_vocab_size()
 
@@ -159,17 +217,17 @@ if __name__ == "__main__":
     ###### Train model #####################
     ########################################
 
-    model = Transformer(
+    model = get_model(
         d_model=512,
         d_ff=2048,
-        num_head=8,
+        num_heads=8,
         num_layers=6,
         dropout=0.1,
         vocab_size_de=vocabulary_size_de,
         vocab_size_en=vocabulary_size_en,
-        padding_id=3,
+        padding_id=padding_id_de,
     )
-    optimizer = torch.optim.Adam(model, lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -177,7 +235,6 @@ if __name__ == "__main__":
         model,
         train_loader,
         val_loader,
-        test_loader,
         optimizer,
         scheduler,
         criterion,
