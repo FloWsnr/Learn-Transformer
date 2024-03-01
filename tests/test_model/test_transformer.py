@@ -42,6 +42,37 @@ def test_transformer_batch(tokenized_sentence_batch: torch.Tensor):
     )
 
 
+def test_transformer_with_different_parameters(tokenized_sentence: torch.Tensor):
+    d_model = 128
+    vocab_size = 100
+    num_layers = 2
+    num_heads = 4
+    d_ff = 256
+    dropout = 0.1
+    padding_id = 8
+
+    model = Transformer(
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        dropout=dropout,
+        padding_id=padding_id,
+        d_model=d_model,
+        vocab_size_de=vocab_size,
+        vocab_size_en=vocab_size,
+    )
+
+    input = tokenized_sentence
+    target = tokenized_sentence
+
+    output = model(input, target)
+    assert output.shape == (
+        target.shape[0],
+        target.shape[1],
+        vocab_size,
+    )
+
+
 def test_transformer_batch_difference_in_token_num(
     tokenized_sentence_batch: torch.Tensor,
 ):
