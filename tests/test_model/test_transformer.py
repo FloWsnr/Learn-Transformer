@@ -94,3 +94,15 @@ def test_transformer_batch_difference_in_token_num(
         target.shape[1],
         vocab_size,
     )
+
+
+def test_transformer_with_conftest_model(model: torch.nn.Module):
+    input = torch.randint(0, 100, (16, 10))
+    target = torch.randint(0, 100, (16, 9))
+
+    output = model(input, target)
+    assert output.shape == (
+        target.shape[0],
+        target.shape[1],
+        100,
+    )

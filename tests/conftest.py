@@ -6,8 +6,11 @@ Creates fixtures (functions) that can be used in the tests.
 import pytest
 import torch
 from pathlib import Path
+from tokenizers import Tokenizer
 
 import learn_former
+import learn_former.model.transformer
+from learn_former.data.tokenizer import CustomTokenizer
 
 
 @pytest.fixture(scope="session")
@@ -96,3 +99,29 @@ def decoder_mask_batch(tokenized_sentence_batch) -> torch.Tensor:
     mask = mask.expand(batch_size, 1, -1, -1)
 
     return mask
+
+
+@pytest.fixture(scope="session")
+def tokenizer(learn_former_root_dir: Path) -> CustomTokenizer:
+    path = learn_former_root_dir.parent / "tests/reference_data/de_tokenizer.json"
+    tokenizer = CustomTokenizer.from_pretrained_tokenizer(path)
+
+    return tokenizer
+
+
+@pytest.fixture(scope="session")
+def model(tokenizer: CustomTokenizer) -> torch.nn.Module:
+
+    vocab_size = tokenizer.tokenizer.get_vocab_size()
+
+    model = learn_former.model.transformer.Transformer(
+        num_layers=2,
+        d_model=128,
+        num_heads=4,
+        d_ff=256,
+        dropout=0.1,
+        vocab_size_de=vocab_size,
+        vocab_size_en=vocab_size,  # Must be higher than the vocab size of the tokenizer!
+        padding_id=0,
+    )
+    return model
