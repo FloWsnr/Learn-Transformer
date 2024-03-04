@@ -13,93 +13,117 @@ from learn_former.data.dataset import get_dataloaders, get_dataset
 from learn_former.data.tokenizer import CustomTokenizer
 
 
-def train(
-    model,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
-    optimizer: Optimizer,
-    scheduler: LRScheduler,
-    criterion: CrossEntropyLoss,
-    tokenizer_de: CustomTokenizer,
-    tokenizer_en: CustomTokenizer,
-    epochs: int = 10,
-):
+class Trainer:
+    def __init__(
+        self,
+        model: Transformer,
+        optimizer: Optimizer,
+        scheduler: LRScheduler,
+        criterion: CrossEntropyLoss,
+        train_loader: DataLoader,
+        test_loader: DataLoader,
+        tokenizer_de: CustomTokenizer,
+        tokenizer_en: CustomTokenizer,
+        device: str = "cuda",
+    ):
+        self.model = model
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        self.criterion = criterion
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.tokenizer_de = tokenizer_de
+        self.tokenizer_en = tokenizer_en
 
-    print(f"Starting training for {epochs} epochs")
-    for epoch in range(epochs):
-        print(f"Epoch {epoch}")
+        self.device = device
+        self.model = self.model.to(self.device)
 
-        epoch_loss = 0
-        num_batches = 0
+    def train(self, epochs: int = 10):
+        print(f"Starting training for {epochs} epochs")
+        for epoch in range(epochs):
+            print(f"Epoch {epoch}")
+            epoch_train_loss = 0
+            epoch_val_loss = 0
+            num_batches = 0
+            for i, batch in enumerate(train_loader):
+                print(f"Processing batch {i}")
+                batch_loss = self._train_on_batch(batch)
+                epoch_train_loss += batch_loss
+                num_batches += 1
 
-        for i, batch in enumerate(train_loader):
+            epoch_train_loss /= num_batches
+            print(f"Epoch training loss: {epoch_train_loss}")
 
-            print(f"\tBatch {i}")
+            # Validation
+            with torch.no_grad():
+                for batch in val_loader:
+                    loss = self._evaluate_on_batch(batch)
+                    epoch_val_loss += loss
 
-            #################################
-            # Tokenization ##################
-            #################################
-            input = batch["de"]
-            target = batch["en"]
+                epoch_val_loss /= len(val_loader)
+                print(f"Validation loss: {loss.item()}")
 
-            # Encode input and target
-            # Need two different tokenizers because the input and target languages are different
-            input = tokenizer_de.encode_batch(input)
-            target = tokenizer_en.encode_batch(target)
+            scheduler.step()
 
-            #################################
-            # Convert to tensor #############
-            #################################
-            input = torch.tensor(input)
-            target = torch.tensor(target)
+    def _evaluate_on_batch(self, batch: torch.Tensor):
+        input, target = batch
+        output = model(input, target)
+        loss = criterion(output, target)
+        return loss.item()
 
-            # move to device
-            if torch.cuda.is_available():
-                input = input.cuda()
-                target = target.cuda()
+    def _train_on_batch(self, batch: torch.Tensor) -> float:
 
-            # input: [batch, tokens]
-            # target: [batch, tokens]
-            # Last target token is not used as input to the model
-            # Forward pass
-            output: torch.Tensor = model(input, target[:, :-1])
+        #################################
+        # Tokenization ##################
+        #################################
+        input = batch["de"]
+        target = batch["en"]
 
-            # Calculate loss
-            # output: [batch, tokens, vocab_size]
-            # Reshape target to [batch, tokens * vocab_size]
-            output = output.view(-1, output.shape[-1])
+        # Encode input and target
+        # Need two different tokenizers because the input and target languages are different
+        input = self.tokenizer_de.encode_batch(input)
+        target = self.tokenizer_en.encode_batch(target)
 
-            # Remove first token from target to match output
-            target = target[:, 1:]
-            # Reshape target to [batch * tokens]
-            target = target.contiguous().view(-1)
+        #################################
+        # Convert to tensor #############
+        #################################
+        input = torch.tensor(input)
+        target = torch.tensor(target)
 
-            loss = criterion(output, target)
+        # move to device
+        input = input.to(self.device)
+        target = target.to(self.device)
 
-            # Backward pass
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        # input: [batch, tokens]
+        # target: [batch, tokens]
+        # Last target token is not used as input to the model
+        # Forward pass
+        output: torch.Tensor = self.model(input, target[:, :-1])
 
-            batch_loss = loss.item()
-            print(f"\tBatch loss: {batch_loss}")
-            epoch_loss += batch_loss
+        # Calculate loss
+        # output: [batch, tokens, vocab_size]
+        # Reshape target to [batch, tokens * vocab_size]
+        output = output.view(-1, output.shape[-1])
 
-            num_batches += 1
+        # Remove first token from target to match output
+        target = target[:, 1:]
+        # Reshape target to [batch * tokens]
+        target = target.contiguous().view(-1)
 
-        epoch_loss /= num_batches
-        print(f"Epoch loss: {epoch_loss}")
+        loss = self.criterion(output, target)
 
-        # Validation
-        with torch.no_grad():
-            for batch in val_loader:
-                input, target = batch
-                output = model(input, target)
-                loss = criterion(output, target)
+        # Backward pass
+        self.optimizer.zero_grad()
+        loss.backward()
 
-            print(f"Validation loss: {loss.item()}")
+        # Clip gradients to avoid exploding gradients
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
 
-        scheduler.step()
+        self.optimizer.step()
+
+        batch_loss = loss.item()
+        print(f"\tBatch loss: {batch_loss}")
+        return batch_loss
 
 
 def test(
@@ -151,6 +175,7 @@ def get_model(
     vocab_size_de: int,
     vocab_size_en: int,
     padding_id: int,
+    device: str = "cuda",
 ) -> Transformer:
 
     model = Transformer(
@@ -164,10 +189,8 @@ def get_model(
         padding_id=padding_id,
     )
 
-    # Move to GPU if available
-    if torch.cuda.is_available():
-        model = model.cuda()
-
+    # Move to device
+    model = model.to(device)
     return model
 
 
@@ -178,6 +201,8 @@ if __name__ == "__main__":
     dataset_name = "wmt16"
     tokenizer_de_path = PACKAGE_PATH / r"learn_former\data\tokenizers\de_tokenizer.json"
     tokenizer_en_path = PACKAGE_PATH / r"learn_former\data\tokenizers\en_tokenizer.json"
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     ########################################
     ###### Get dataset #####################
@@ -190,8 +215,8 @@ if __name__ == "__main__":
     ########################################
     train_loader, val_loader, test_loader = get_dataloaders(
         dataset=dataset,
-        batch_size=32,
-        num_workers=8,
+        batch_size=16,
+        num_workers=4,
     )
 
     ########################################
@@ -226,19 +251,22 @@ if __name__ == "__main__":
         vocab_size_de=vocabulary_size_de,
         vocab_size_en=vocabulary_size_en,
         padding_id=padding_id_de,
+        device=device,
     )
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
     criterion = torch.nn.CrossEntropyLoss()
 
-    train(
-        model,
-        train_loader,
-        val_loader,
-        optimizer,
-        scheduler,
-        criterion,
-        tokenizer_de,
-        tokenizer_en,
+    trainer = Trainer(
+        model=model,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        criterion=criterion,
+        train_loader=train_loader,
+        test_loader=test_loader,
+        tokenizer_de=tokenizer_de,
+        tokenizer_en=tokenizer_en,
+        device=device,
     )
+    trainer.train(epochs=10)
     print("Finished training")
