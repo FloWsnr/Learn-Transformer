@@ -106,3 +106,11 @@ def test_transformer_with_conftest_model(model: torch.nn.Module):
         target.shape[1],
         100,
     )
+
+
+def test_transformer_output_is_not_nan(model: torch.nn.Module):
+    input = torch.randint(0, 100, (16, 10))
+    target = torch.randint(0, 100, (16, 9))
+
+    output = model(input, target)
+    assert not torch.isnan(output).any()

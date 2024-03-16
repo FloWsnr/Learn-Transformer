@@ -33,3 +33,19 @@ def test_decoder_batch(
         target_mask=decoder_mask_batch,
     )
     assert x.shape == embedded_sentence_batch.shape
+
+
+def test_decoder_batch_is_not_nan(
+    embedded_sentence_batch: torch.Tensor,
+    encoder_mask_batch: torch.Tensor,
+    decoder_mask_batch: torch.Tensor,
+):
+    num_layers = 6
+    decoder = Decoder(num_layers=num_layers)
+    x = decoder(
+        embedded_sentence_batch,
+        encoder_output=embedded_sentence_batch,
+        input_mask=encoder_mask_batch,
+        target_mask=decoder_mask_batch,
+    )
+    assert not torch.isnan(x).any()
