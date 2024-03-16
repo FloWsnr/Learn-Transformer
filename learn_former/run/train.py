@@ -65,34 +65,23 @@ class Trainer:
 
             scheduler.step()
 
-    def _evaluate_on_batch(self, batch: torch.Tensor):
-        input, target = batch
-        output = model(input, target)
-        loss = criterion(output, target)
+    def _evaluate_on_batch(self, batch: dict) -> float:
+        input, target = self._prep_batch(batch)
+
+        output: torch.Tensor = self.model(input, target[:, :-1])
+        output = output.view(-1, output.shape[-1])
+
+        # Remove first token from target to match output
+        target: torch.Tensor = target[:, 1:]
+        # Reshape target to [batch * tokens]
+        target = target.contiguous().view(-1)
+
+        loss = self.criterion(output, target)
         return loss.item()
 
     def _train_on_batch(self, batch: torch.Tensor) -> float:
 
-        #################################
-        # Tokenization ##################
-        #################################
-        input = batch["de"]
-        target = batch["en"]
-
-        # Encode input and target
-        # Need two different tokenizers because the input and target languages are different
-        input = self.tokenizer_de.encode_batch(input)
-        target = self.tokenizer_en.encode_batch(target)
-
-        #################################
-        # Convert to tensor #############
-        #################################
-        input = torch.tensor(input)
-        target = torch.tensor(target)
-
-        # move to device
-        input = input.to(self.device)
-        target = target.to(self.device)
+        input, target = self._prep_batch(batch)
 
         # input: [batch, tokens]
         # target: [batch, tokens]
@@ -124,6 +113,31 @@ class Trainer:
         batch_loss = loss.item()
         print(f"\tBatch loss: {batch_loss}")
         return batch_loss
+
+    def _prep_batch(self, batch: dict) -> tuple[torch.Tensor]:
+        """Preprocess a batch of data. Tokenize and convert to tensor."""
+        #################################
+        # Tokenization ##################
+        #################################
+        input = batch["de"]
+        target = batch["en"]
+
+        # Encode input and target
+        # Need two different tokenizers because the input and target languages are different
+        input = self.tokenizer_de.encode_batch(input)
+        target = self.tokenizer_en.encode_batch(target)
+
+        #################################
+        # Convert to tensor #############
+        #################################
+        input = torch.tensor(input)
+        target = torch.tensor(target)
+
+        # move to device
+        input = input.to(self.device)
+        target = target.to(self.device)
+
+        return input, target
 
 
 def test(
