@@ -90,8 +90,11 @@ def test_self_multiheadattention_layer_with_pad_mask_from_generator(
     k = embedded_sentence_batch
     v = embedded_sentence_batch
 
-    x_without_embeddings = embedded_sentence_batch[:, :, 0]
-    mask = mask_generator.padding_mask(x_without_embeddings)
+    # tokens for look ahead mask generation
+    # shape = k.shape[:2]
+    # random numbers between 0 and 10
+    tokens = torch.randint(0, 10, k.shape[:2])
+    mask = mask_generator.padding_mask(tokens)
 
     x = mha(
         q,
@@ -118,8 +121,11 @@ def test_cross_multiheadattention_layer_with_pad_mask_from_generator(
     k = embedded_sentence_batch[:, :-1, :]
     v = embedded_sentence_batch[:, :-1, :]
 
-    x_without_embeddings = k[:, :, 0]
-    mask = mask_generator.padding_mask(x_without_embeddings)
+    # tokens for look ahead mask generation
+    # shape = k.shape[:2]
+    # random numbers between 0 and 10
+    tokens = torch.randint(0, 10, k.shape[:2])
+    mask = mask_generator.padding_mask(tokens)
 
     x = mha(
         q,
@@ -128,6 +134,37 @@ def test_cross_multiheadattention_layer_with_pad_mask_from_generator(
         mask=mask,
     )
     assert x.shape == (2, 10, input_dim)
+
+
+def test_cross_multiheadattention_layer_is_not_nan(
+    embedded_sentence_batch: torch.Tensor,
+):
+    """Test the self attention layer with padding mask generated from MaskGenerator"""
+
+    input_dim = 512
+    num_heads = 8
+    mha = MultiHeadAttention(input_dim=input_dim, num_heads=num_heads)
+    mask_generator = MaskGenerator(padding_id=0)
+
+    q = embedded_sentence_batch
+
+    # Different k and v for cross attention
+    k = embedded_sentence_batch[:, :-1, :]
+    v = embedded_sentence_batch[:, :-1, :]
+
+    # tokens for look ahead mask generation
+    # shape = k.shape[:2]
+    # random numbers between 0 and 10
+    tokens = torch.randint(0, 10, k.shape[:2])
+    mask = mask_generator.padding_mask(tokens)
+
+    x = mha(
+        q,
+        k,
+        v,
+        mask=mask,
+    )
+    assert not torch.isnan(x).any()
 
 
 def test_self_multiheadattention_layer_with_mask_generator_look_ahead(
@@ -143,8 +180,11 @@ def test_self_multiheadattention_layer_with_mask_generator_look_ahead(
     k = embedded_sentence_batch
     v = embedded_sentence_batch
 
-    x_without_embeddings = embedded_sentence_batch[:, :, 0]
-    mask = mask_generator.look_ahead_mask(x_without_embeddings)
+    # tokens for look ahead mask generation
+    # shape = embedded_sentence_batch.shape[:2]
+    # random numbers between 0 and 10
+    tokens = torch.randint(0, 10, embedded_sentence_batch.shape[:2])
+    mask = mask_generator.look_ahead_mask(tokens)
 
     x = mha(
         q,

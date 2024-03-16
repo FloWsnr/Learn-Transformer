@@ -83,8 +83,9 @@ class MultiHeadAttention(torch.nn.Module):
         # Mask should be [batch, num_heads, tokens, tokens]
         # Apply mask before softmax
         # -inf leads to 0 in softmax, so no attention is paid to that token
+        # Actual -inf is not used because of numerical instability (leads to NaNs)
         if mask is not None:
-            score = score.masked_fill(mask == 0, torch.tensor(float("-inf")))
+            score = score.masked_fill(mask == 0, torch.tensor(1e-16))
 
         # Apply softmax
         # Softmax converts the scores to probabilities that sum to 1
