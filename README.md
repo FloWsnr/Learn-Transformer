@@ -1,6 +1,6 @@
 # Learn Transformer
 
-Just my humble attempt to understand the transformer model (attention is all you need) in-depth.
+My attempt to understand the transformer model (attention is all you need) in-depth.
 Feel free to reuse the code, but be aware that this is just a learning project and not a production-ready code.
 
 I'm happy to get feedback on mistakes etc, so feel free to open an issue or a pull request.
