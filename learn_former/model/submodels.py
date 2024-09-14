@@ -46,7 +46,6 @@ class MultiHeadAttention(torch.nn.Module):
         v: torch.Tensor,
         mask: torch.Tensor = None,
     ):
-
         # Get batch size
         batch_size = k.shape[0]
 
@@ -204,7 +203,6 @@ class PositionalEncoding(torch.nn.Module):
         self.pos_encoding = torch.nn.Parameter(pos_encoding.unsqueeze(0))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         batch, tokens, dim = x.shape
 
         # Add the position encoding to the input
@@ -220,14 +218,13 @@ class MaskGenerator:
         self.padding_id = padding_id
 
     def padding_mask(self, x: torch.Tensor) -> torch.Tensor:
-
         device = x.device
 
         # x: [batch, tokens]
         batch_size, num_tokens = x.shape
 
         # Create mask of shape (batch, token)
-        mask = torch.ones((batch_size, num_tokens), dtype=torch.bool)
+        mask = torch.ones((batch_size, num_tokens), dtype=torch.bool, device=device)
 
         # mask = 0 where x is padding id
         mask[x == self.padding_id] = 0
@@ -236,7 +233,7 @@ class MaskGenerator:
         # mask: [batch, 1, 1, tokens]
         mask = mask.unsqueeze(1).unsqueeze(2)
 
-        return mask.to(device)
+        return mask
 
     def look_ahead_mask(self, x: torch.Tensor) -> torch.Tensor:
         device = x.device
