@@ -292,3 +292,16 @@ def test_mask_generator_lookahead_batch(tokenized_sentence_batch: torch.Tensor):
     # The mask should be a lower triangular matrix
     # second element and all after this in first row should be 0
     assert torch.all(mask[:, :, 0, 1:] == 0)
+
+
+def test_mask_generator_lookahead_batch_cuda(tokenized_sentence_batch: torch.Tensor):
+    padding_id = 7
+    device = "cuda"
+    tokenized_sentence_batch = tokenized_sentence_batch.to(device)
+
+    mg = MaskGenerator(padding_id)
+    mask = mg.look_ahead_mask(tokenized_sentence_batch)
+
+    # The mask should be a lower triangular matrix
+    # second element and all after this in first row should be 0
+    assert torch.all(mask[:, :, 0, 1:] == 0)

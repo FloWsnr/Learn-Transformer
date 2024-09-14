@@ -243,7 +243,9 @@ class MaskGenerator:
         # create look-ahead mask
         # mask = [batch, 1 , tokens, tokens]
         # Create a rectangular mask (tokens, tokens)
-        mask = torch.ones((batch_size, num_tokens, num_tokens), dtype=torch.bool)
+        mask = torch.ones(
+            (batch_size, num_tokens, num_tokens), dtype=torch.bool, device=device
+        )
 
         # Set the upper triangular part of the mask to 0
         # Therefore, the fist token (row 0) can only attend to itself
@@ -256,4 +258,4 @@ class MaskGenerator:
         # mask: [batch, 1, tokens, tokens]
         mask = mask.unsqueeze(1)
 
-        return mask.to(device)
+        return mask
