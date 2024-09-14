@@ -7,18 +7,19 @@ from learn_former.data.dataset import get_dataloaders, get_dataset
 
 
 def test_get_split_dataset(learn_former_root_dir: Path):
-
     dataset_dir = learn_former_root_dir / "data/datasets"
-    dataset = get_dataset(storage_dir=dataset_dir, dataset_name="wmt16", split="test")
+    dataset = get_dataset(
+        storage_dir=dataset_dir, dataset_name="wmt16", split="test[:2]"
+    )
 
     x = dataset["translation"][0]
     x_de = x["de"]
     x_en = x["en"]
     assert isinstance(x_de, str)
+    assert isinstance(x_en, str)
 
 
 def test_get_dataloaders(learn_former_root_dir: Path):
-
     dataset_dir = learn_former_root_dir / "data/datasets"
     dataset = get_dataset(storage_dir=dataset_dir, dataset_name="wmt16")
 

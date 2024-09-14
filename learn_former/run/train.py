@@ -80,7 +80,6 @@ class Trainer:
         return loss.item()
 
     def _train_on_batch(self, batch: torch.Tensor) -> float:
-
         input, target = self._prep_batch(batch)
 
         # input: [batch, tokens]
@@ -162,7 +161,6 @@ def test(
 def get_tokenizer(
     tokenizer_path: Path, dataset_dir: str, dataset_name: str, language: str
 ) -> CustomTokenizer:
-
     if tokenizer_path.exists():
         print(f"Loading tokenizer from {tokenizer_path}")
         tokenizer = CustomTokenizer.from_pretrained_tokenizer(tokenizer_path)
@@ -191,7 +189,6 @@ def get_model(
     padding_id: int,
     device: str = "cuda",
 ) -> Transformer:
-
     model = Transformer(
         d_model=d_model,
         d_ff=d_ff,
@@ -227,10 +224,11 @@ if __name__ == "__main__":
     ########################################
     ###### Get dataloaders #################
     ########################################
+    print("Getting dataloaders")
     train_loader, val_loader, test_loader = get_dataloaders(
         dataset=dataset,
-        batch_size=16,
-        num_workers=4,
+        batch_size=2,
+        num_workers=1,
     )
 
     ########################################

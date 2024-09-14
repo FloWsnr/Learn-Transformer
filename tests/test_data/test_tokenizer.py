@@ -5,9 +5,8 @@ from learn_former.data.tokenizer import CustomTokenizer
 
 
 def test_tokenizer_from_file(learn_former_root_dir: Path):
-
     tokenizer_path = (
-        learn_former_root_dir.parent / r"tests\reference_data\tokenizer.json"
+        learn_former_root_dir.parent / r"tests\reference_data\de_tokenizer.json"
     )
 
     tokenizer = CustomTokenizer.from_pretrained_tokenizer(tokenizer_path)
@@ -15,7 +14,6 @@ def test_tokenizer_from_file(learn_former_root_dir: Path):
 
 
 def test_tokenizer_encoding_decoding(learn_former_root_dir: Path):
-
     tokenizer_path = (
         learn_former_root_dir.parent / r"tests\reference_data\de_tokenizer.json"
     )
@@ -30,7 +28,6 @@ def test_tokenizer_encoding_decoding(learn_former_root_dir: Path):
 
 
 def test_tokenizer_from_dataset(learn_former_root_dir: Path):
-
     dataset_path = learn_former_root_dir / "data/datasets"
     dataset_name = "wmt16"
     language = "de"
