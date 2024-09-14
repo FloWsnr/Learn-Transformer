@@ -13,7 +13,7 @@ def test_get_split_dataset(learn_former_root_dir: Path):
     )
 
     x = dataset["translation"][0]
-    x_de = x["de"]
+    x_de = x["tr"]
     x_en = x["en"]
     assert isinstance(x_de, str)
     assert isinstance(x_en, str)
@@ -27,7 +27,7 @@ def test_get_dataloaders(learn_former_root_dir: Path):
     train_loader, val_loader, test_loader = dataloaders
 
     for batch in val_loader:
-        x = batch["de"]
+        x = batch["tr"]
         y = batch["en"]
 
         assert isinstance(x, list)

@@ -118,7 +118,7 @@ class Trainer:
         #################################
         # Tokenization ##################
         #################################
-        input = batch["de"]
+        input = batch["tr"]
         target = batch["en"]
 
         # Encode input and target
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     tokenizer_en_path = PACKAGE_PATH / r"learn_former\data\tokenizers\en_tokenizer.json"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    torch.set_default_device(device)
     ########################################
     ###### Get dataset #####################
     ########################################
@@ -228,7 +228,8 @@ if __name__ == "__main__":
     train_loader, val_loader, test_loader = get_dataloaders(
         dataset=dataset,
         batch_size=2,
-        num_workers=1,
+        num_workers=2,
+        slice=100,
     )
 
     ########################################
@@ -265,6 +266,7 @@ if __name__ == "__main__":
         padding_id=padding_id_de,
         device=device,
     )
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
     criterion = torch.nn.CrossEntropyLoss()

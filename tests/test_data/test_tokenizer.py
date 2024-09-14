@@ -30,7 +30,7 @@ def test_tokenizer_encoding_decoding(learn_former_root_dir: Path):
 def test_tokenizer_from_dataset(learn_former_root_dir: Path):
     dataset_path = learn_former_root_dir / "data/datasets"
     dataset_name = "wmt16"
-    language = "de"
+    language = "tr"
     split = "test"
 
     tokenizer = CustomTokenizer.from_dataset(

@@ -11,7 +11,7 @@ def get_dataset(
 ) -> DatasetDict:
     dataset: DatasetDict = load_dataset(
         dataset_name,
-        name="de-en",
+        name="tr-en",
         cache_dir=storage_dir,
         split=split,
     )
@@ -22,16 +22,26 @@ def get_dataloaders(
     dataset: DatasetDict,
     batch_size: int = 32,
     num_workers: int = 4,
+    slice: str = None,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
+    train_dataset = dataset["train"]["translation"]
+    val_dataset = dataset["validation"]["translation"]
+    test_dataset = dataset["test"]["translation"]
+
+    if slice is not None:
+        train_dataset = train_dataset[:slice]
+        val_dataset = val_dataset[:slice]
+        test_dataset = test_dataset[:slice]
+
     train_loader = DataLoader(
-        dataset["train"]["translation"], batch_size=batch_size, num_workers=num_workers
+        train_dataset, batch_size=batch_size, num_workers=num_workers
     )
     val_loader = DataLoader(
-        dataset["validation"]["translation"],
+        val_dataset,
         batch_size=batch_size,
         num_workers=num_workers,
     )
     test_loader = DataLoader(
-        dataset["test"]["translation"], batch_size=batch_size, num_workers=num_workers
+        test_dataset, batch_size=batch_size, num_workers=num_workers
     )
     return train_loader, val_loader, test_loader
