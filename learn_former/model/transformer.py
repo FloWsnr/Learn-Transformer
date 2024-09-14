@@ -37,7 +37,11 @@ class Transformer(torch.nn.Module):
         # Embedding is shared between encoder and decoder
         # larger vocab size is used for the embeddings
         vocab_size = max(vocab_size_de, vocab_size_en)
-        self.embedding = Embedding(num_embeddings=vocab_size, dim_embeddings=d_model)
+        self.vocab_size = vocab_size
+        self.embedding = Embedding(
+            num_embeddings=vocab_size,
+            dim_embeddings=d_model,
+        )
         self.positional_encoding = PositionalEncoding(embedding_dims=d_model)
 
         self.dropout = torch.nn.Dropout(dropout)
