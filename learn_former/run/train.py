@@ -61,7 +61,7 @@ class Trainer:
                     epoch_val_loss += loss
 
                 epoch_val_loss /= len(val_loader)
-                print(f"Validation loss: {loss.item()}")
+                print(f"Validation loss: {epoch_val_loss}")
 
             scheduler.step()
 
@@ -208,10 +208,10 @@ def get_model(
 if __name__ == "__main__":
     from config import PACKAGE_PATH
 
-    dataset_dir = PACKAGE_PATH / "learn_former\data\datasets"
+    dataset_dir = PACKAGE_PATH / r"learn_former/data/datasets"
     dataset_name = "wmt16"
-    tokenizer_de_path = PACKAGE_PATH / r"learn_former\data\tokenizers\de_tokenizer.json"
-    tokenizer_en_path = PACKAGE_PATH / r"learn_former\data\tokenizers\en_tokenizer.json"
+    tokenizer_de_path = PACKAGE_PATH / r"learn_former/data/tokenizers/de_tokenizer.json"
+    tokenizer_en_path = PACKAGE_PATH / r"learn_former/data/tokenizers/en_tokenizer.json"
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     torch.set_default_device(device)
@@ -237,10 +237,10 @@ if __name__ == "__main__":
     ########################################
 
     tokenizer_de = get_tokenizer(
-        tokenizer_de_path, "learn_former\data\datasets", "wmt16", "de"
+        tokenizer_de_path, "learn_former/data/datasets", "wmt16", "de"
     )
     tokenizer_en = get_tokenizer(
-        tokenizer_en_path, "learn_former\data\datasets", "wmt16", "en"
+        tokenizer_en_path, "learn_former/data/datasets", "wmt16", "en"
     )
 
     padding_id_de = tokenizer_de.tokenizer.token_to_id("[PAD]")
