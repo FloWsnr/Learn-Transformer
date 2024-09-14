@@ -26,6 +26,17 @@ def test_batch_feedforward_layer(embedded_sentence_batch: torch.Tensor):
     assert x.shape == (2, 10, output_dim)
 
 
+def test_batch_feedforward_layer_cuda(embedded_sentence_batch: torch.Tensor):
+    device = "cuda"
+    output_dim = 512
+    ffm = FeedForward(input_dim=output_dim, hidden_dim=2048)
+    ffm.to(device)
+
+    embedded_sentence_batch = embedded_sentence_batch.to(device)
+    x = ffm(embedded_sentence_batch)
+    assert x.shape == (2, 10, output_dim)
+
+
 #############################################
 #### Test the multi-head attention layer ####
 #############################################
@@ -214,6 +225,19 @@ def test_batch_word_embedding_layer(tokenized_sentence_batch: torch.Tensor):
     vocab_size = 10000
     embedding_dim = 512
     we = Embedding(vocab_size, embedding_dim)
+    x = we(tokenized_sentence_batch)
+
+    token_shape = tokenized_sentence_batch.shape
+    assert x.shape == (token_shape[0], token_shape[1], embedding_dim)
+
+
+def test_batch_word_embedding_layer_cuda(tokenized_sentence_batch: torch.Tensor):
+    vocab_size = 10000
+    embedding_dim = 512
+    device = "cuda"
+    tokenized_sentence_batch = tokenized_sentence_batch.to(device)
+    we = Embedding(vocab_size, embedding_dim)
+    we.to(device)
     x = we(tokenized_sentence_batch)
 
     token_shape = tokenized_sentence_batch.shape

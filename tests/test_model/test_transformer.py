@@ -96,21 +96,31 @@ def test_transformer_batch_difference_in_token_num(
     )
 
 
-def test_transformer_with_conftest_model(model: torch.nn.Module):
+def test_transformer_with_conftest_model(model: Transformer):
     input = torch.randint(0, 100, (16, 10))
     target = torch.randint(0, 100, (16, 9))
 
     output = model(input, target)
-    assert output.shape == (
-        target.shape[0],
-        target.shape[1],
-        100,
-    )
+    assert output.shape == (target.shape[0], target.shape[1], model.vocab_size)
 
 
-def test_transformer_output_is_not_nan(model: torch.nn.Module):
+def test_transformer_output_is_not_nan(model: Transformer):
     input = torch.randint(0, 100, (16, 10))
     target = torch.randint(0, 100, (16, 9))
 
     output = model(input, target)
     assert not torch.isnan(output).any()
+
+
+def test_transformer_cuda(model: Transformer):
+    device = "cuda"
+    model.to(device)
+    input = torch.randint(0, 100, (16, 10)).to(device)
+    target = torch.randint(0, 100, (16, 9)).to(device)
+
+    output = model(input, target)
+    assert output.shape == (
+        target.shape[0],
+        target.shape[1],
+        model.vocab_size,
+    )
