@@ -133,7 +133,11 @@ if __name__ == "__main__":
     )
 
     # prefil
-    out = attention(text, kv_cache)
+    mask = torch.ones(batch, 1, prompt_l, prompt_l, dtype=torch.bool)
+    mask = torch.triu(
+        mask
+    )  # we need upper, since True elements are masked_filled with -inf
+    out = attention(text, kv_cache, mask=mask)
 
     for _ in range(6):
         new_token = torch.ones(batch, 1, dim)
