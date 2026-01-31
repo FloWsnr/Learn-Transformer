@@ -17,11 +17,11 @@ class KVCache:
         device: torch.device,
         dtype: torch.dtype,
     ) -> None:
-        self.k_cache = torch.empty(
-            batch_size, max_seq_len, num_heads, head_dim, device=device, dtype=dtype
+        self.k_cache = torch.zeros(
+            batch_size, num_heads, max_seq_len, head_dim, device=device, dtype=dtype
         )
-        self.v_cache = torch.empty(
-            batch_size, max_seq_len, num_heads, head_dim, device=device, dtype=dtype
+        self.v_cache = torch.zeros(
+            batch_size, num_heads, max_seq_len, head_dim, device=device, dtype=dtype
         )
 
         self.current_seq_len = 0
@@ -42,44 +42,40 @@ class KVCache:
             value to cache (B, NH, SEQ, HD)
         """
 
-        seq_len = k.shape[1]
+        seq_len = k.shape[2]
         new_len = self.current_seq_len + seq_len
-        self.k_cache[:, :, self.current_seq_len : new_len, :]
-        self.k_cache[:, :, self.current_seq_len : new_len, :]
+        self.k_cache[:, :, self.current_seq_len : new_len, :] = k
+        self.v_cache[:, :, self.current_seq_len : new_len, :] = v
 
         self.current_seq_len = new_len
 
-        return k, v
+        return (self.k_cache[:, :, :new_len, :], self.v_cache[:, :, :new_len, :])
+
+    def reset(self) -> None:
+        self.k_cache.zero_()
+        self.v_cache.zero_()
+        self.current_seq_len = 0
 
 
 class MHA(nn.Module):
-    def __init__(self, d_model: int, n_heads: int, max_seq_len: int) -> None:
+    def __init__(self, d_model: int, n_heads: int) -> None:
         super().__init__()
 
         d_head = d_model // n_heads
-        self.d_head = torch.tensor(d_head)
+        self.d_head = d_head
         self.n_heads = n_heads
-        self.max_seq_len = max_seq_len
 
         self.w_q = nn.Linear(d_model, d_model)
         self.w_k = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
         self.w_out = nn.Linear(d_model, d_model)
 
-        self.kv_cache: Optional[KVCache] = None
-
-    def forward(self, x: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        if self.kv_cache is None:
-            b, seq, model_dim = x.shape
-            self.kv_cache = KVCache(
-                batch_size=b,
-                max_seq_len=self.max_seq_len,
-                num_heads=self.n_heads,
-                head_dim=int(self.d_head),
-                device=x.device,
-                dtype=x.dtype,
-            )
-
+    def forward(
+        self,
+        x: Tensor,
+        kv_cache: Optional[KVCache] = None,
+        mask: Optional[Tensor] = None,
+    ) -> Tensor:
         q = self.w_q(x)
         k = self.w_k(x)
         v = self.w_v(x)
@@ -96,10 +92,11 @@ class MHA(nn.Module):
             v, "b seq (heads d_head) -> b heads seq d_head", heads=self.n_heads
         )
 
-        k, v = self.kv_cache.update(k, v)
+        if kv_cache is not None:
+            k, v = kv_cache.update(k, v)
 
         scores = torch.matmul(q, k.transpose(-2, -1))
-        scores = scores / torch.sqrt(self.d_head)
+        scores = scores / torch.sqrt(torch.tensor(self.d_head, dtype=scores.dtype))
 
         if mask is not None:
             scores = torch.masked_fill(scores, mask=mask, value=-torch.inf)
@@ -118,11 +115,28 @@ class MHA(nn.Module):
 
 if __name__ == "__main__":
     batch = 5
-    seq = 16
-    dim = 16
-    n_heads = 2
-    attention = MHA(d_model=dim, n_heads=n_heads)
-    x = torch.ones(batch, seq, dim)
+    max_seq = 16
+    prompt_l = 10
 
-    x = attention(x)
-    x = attention(x)
+    dim = 8
+    n_heads = 2
+    text = torch.ones(batch, prompt_l, dim)
+
+    attention = MHA(d_model=dim, n_heads=n_heads)
+    kv_cache = KVCache(
+        batch_size=batch,
+        max_seq_len=max_seq,
+        num_heads=n_heads,
+        head_dim=dim // n_heads,
+        device=text.device,
+        dtype=text.dtype,
+    )
+
+    # prefil
+    out = attention(text, kv_cache)
+
+    for _ in range(6):
+        new_token = torch.ones(batch, 1, dim)
+        out = attention(new_token, kv_cache=kv_cache)
+
+    kv_cache.reset()
