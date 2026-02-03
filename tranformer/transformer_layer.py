@@ -28,7 +28,7 @@ class MLP(nn.Module):
     def __init__(self, d_in: int, d_hidden: int) -> None:
         super().__init__()
         self.mlp = nn.Sequential(
-            nn.Linear(d_in, d_hidden), nn.GELU(), nn.Linear(d_in, d_hidden)
+            nn.Linear(d_in, d_hidden), nn.GELU(), nn.Linear(d_hidden, d_in)
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -74,12 +74,39 @@ class MHA(nn.Module):
         return x
 
 
+class TransformerLayer(nn.Module):
+    def __init__(
+        self, d_in: int, d_mlp: int, n_head: int, dropout: float = 0.0
+    ) -> None:
+        super().__init__()
+
+        self.mha = MHA(d_in=d_in, n_head=n_head, dropout=dropout)
+        self.mlp = SwiGLU(d_in=d_in, d_hidden=d_mlp, dropout=dropout)
+        self.norm1 = nn.RMSNorm(d_in)
+        self.norm2 = nn.RMSNorm(d_in)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.mha(self.norm1(x)) + x  # res conn
+        x = self.mlp(self.norm2(x)) + x
+        return x
+
+
 if __name__ == "__main__":
     batch = 5
     seq = 16
     dim = 16
     n_heads = 2
-    attention = MHA(d_in=dim, n_head=n_heads)
-    x = torch.ones(batch, seq, dim)
 
-    x = attention(x)
+    trans = TransformerLayer(d_in=dim, d_mlp=32, n_head=n_heads)
+    criterion = nn.CrossEntropyLoss()
+    opt = torch.optim.AdamW(trans.parameters(), lr=0.0001, betas=(0.9, 0.999))
+
+    # training run
+    for i in range(10):
+        x = torch.rand(batch, seq, dim)
+        y = trans(x)
+        loss = criterion(y, x)
+
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
