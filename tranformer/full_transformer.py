@@ -1,5 +1,6 @@
 import torch
 from torch import Tensor, nn
+import math
 
 
 class LayerNorm(nn.Module):
@@ -113,6 +114,53 @@ class AbsEmbeddings(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         seq_len = x.shape[-2]
         return x + self.pe[:seq_len, :]
+
+
+class SineEmbeddings(nn.Module):
+    def __init__(self, d_model: int, max_seq: int) -> None:
+        super().__init__()
+
+        pe = torch.zeros(max_seq, d_model)
+
+        pos = torch.arange(0, max_seq).unsqueeze(-1)
+        dims = torch.arange(0, d_model, 2)
+        freq = torch.exp(-math.log(10000) * dims / d_model)
+
+        pe[:, ::2] = torch.sin(pos * freq)
+        pe[:, 1::2] = torch.cos(pos * freq)
+        self.register_buffer("pe", pe)
+        self.pe: Tensor
+
+    def forward(self, x: Tensor) -> Tensor:
+        seq_len = x.shape[-2]
+        return x + self.pe[:seq_len, :]
+
+
+class RoPE(nn.Module):
+    def __init__(self, d_model: int, max_seq: int) -> None:
+        super().__init__()
+
+        freq = torch.arange(0, d_model, 2) / d_model
+        freq = torch.exp(freq * -math.log(10000))
+        pos = torch.arange(0, max_seq).unsqueeze(-1)
+        angles = pos * freq
+        self.register_buffer("cos", angles.cos())
+        self.register_buffer("sin", angles.sin())
+        self.cos: Tensor
+        self.sin: Tensor
+
+    def forward(self, x):
+        b, seq, d = x.shape
+        sin = self.sin[:seq]
+        cos = self.cos[:seq]
+
+        x1 = x[::2]
+        x2 = x[1::2]
+
+        out1 = x1 * cos - x2 * sin
+        out2 = x1 * sin + x2 * cos
+
+        return torch.stack((out1, out2), dim=-1).flatten(-2)
 
 
 class Router(nn.Module):
