@@ -9,9 +9,10 @@ def analyze_corpus(documents: list[str], top_k: int = 10, min_docs: int = 2) -> 
         "first_seen_order": ["the", "quick", ...]
     }
     """
-    data = defaultdict(top_words=[], by_letter={}, first_seen_order=[])
+    data = {"top_words": [], "by_letter": defaultdict(list), "first_seen_order": []}
     for doc in documents:
-        counter = Counter(doc)
+        counted_doc = Counter(doc)
+        pass
 
     return data
 
